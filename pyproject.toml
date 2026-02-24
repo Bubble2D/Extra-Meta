@@ -1,0 +1,11 @@
+[project]
+name = "metadataskritp"
+version = "0.1.0"
+description = "Skript zum Ergänzen von Metadaten ausgehend von artist & titel"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "watchdog>=6.0.0",
+]
+
+
