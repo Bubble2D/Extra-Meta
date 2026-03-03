@@ -11,6 +11,8 @@ class Watcher:
         self.config = config
         self.observer_lock = threading.Lock()  
         self.file_queue = queue.Queue()
+        self.queued_files = set()
+        self.queued_lock = threading.Lock()
         self.handler = Handler(  
             stop_callback=lambda: None,
             file_queue=self.file_queue,
@@ -20,28 +22,38 @@ class Watcher:
         self.worker.start()
 
     def _process_queue(self):
-        """Worker-Thread: verarbeitet Dateien sequenziell aus der Queue."""
         while True:
-            filepath = self.file_queue.get()
+            full_path = self.file_queue.get()
             try:
-                self.handler.configureData(filepath)  
+                self.handler.configureData(full_path)
             except Exception as e:
-                print(f"Fehler bei {filepath}: {e}")
+                print(f"Fehler bei {full_path}: {e}")
             finally:
+                with self.queued_lock:
+                    self.queued_files.discard(full_path)
                 self.file_queue.task_done()
 
     def check_empty(self):
-        files = os.listdir(self.config.get_watcher()["input_path"])
-        return len(files) <= 1  # .stfolder wird mitgezählt
+        for root, dirs, files in os.walk(self.config.get_watcher()["input_path"]):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for filename in files:
+                if not filename.startswith(".") and not filename.endswith(".tmp"):
+                    return False
+        return True
 
     def pushFileToQueue(self):
-        """Bestehende Dateien in die Queue einreihen."""
         input_path = self.config.get_watcher()["input_path"]
-        files = os.listdir(input_path)
-        for file in files:
-            if file == ".stfolder":
-                continue
-            self.file_queue.put(os.path.join(input_path, file))  
+        for root, dirs, files in os.walk(input_path):
+            dirs[:] = [d for d in dirs if not d.startswith(".")]
+            for filename in files:
+                if filename.startswith(".") or filename.endswith(".tmp"):
+                    continue
+                full_path = os.path.join(root, filename) 
+                with self.queued_lock:
+                    if full_path in self.queued_files:
+                        continue
+                    self.queued_files.add(full_path)
+                self.file_queue.put(full_path)
 
     def start_observer(self):
         with self.observer_lock:
@@ -64,7 +76,7 @@ class Watcher:
             config=self.config
         )
         input_path = self.config.get_watcher()["input_path"]
-        observer.schedule(event_handler, input_path, recursive=False)  
+        observer.schedule(event_handler, input_path, recursive=True)  
         observer.start()
         print(f"Observer gestartet für {input_path} (idle timeout: {self.config.get_watcher()['idle_timeout']}s)...")
         threading.Thread(target=event_handler.monitor_idle, daemon=True).start()

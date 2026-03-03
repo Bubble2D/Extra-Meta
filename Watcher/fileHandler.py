@@ -59,5 +59,4 @@ class Handler(FileSystemEventHandler):
         self.mergeMove(filepath, output)  
 
         print(f"Verarbeite: {filepath}")
-        handler = SongBPMHandler(self.config)
-        handler.process(output)
+        self.SongBPM.process(output)
