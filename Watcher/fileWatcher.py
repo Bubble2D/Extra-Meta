@@ -85,6 +85,6 @@ class Watcher:
             print("Watcher beendet")
 
 if __name__ == '__main__':
-    config = ConfigManager()  # Klasse korrekt instanziieren
+    config = ConfigManager() 
     watcher = Watcher(config)
     watcher.run()

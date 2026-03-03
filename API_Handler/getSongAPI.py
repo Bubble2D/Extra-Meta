@@ -5,6 +5,7 @@ from difflib import SequenceMatcher
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, TBPM, TCON, TXXX, TLEN
 from mutagen.id3 import ID3NoHeaderError
 
+BASE_URL = "https://api.getsong.co"
 
 def normalize(text):
     if not text:
@@ -25,47 +26,45 @@ def find_best_match(songs, artist, title, accuracy):
     best_song = None
     for song in songs:
         api_artist = normalize(song.get("artist", {}).get("name", ""))
-        api_title = normalize(song.get("song_title", ""))
+        api_title = normalize(song.get("title", ""))
         score = (similarity(artist_norm, api_artist) + similarity(title_norm, api_title)) / 2
         if score > best_score:
             best_score = score
             best_song = song
-    print(f"Bester Match: '{best_song.get('song_title')}' von '{best_song.get('artist', {}).get('name')}' (Score: {best_score:.2f})")
+    if best_song:
+        print(f"Bester Match: '{best_song.get('title')}' von '{best_song.get('artist', {}).get('name')}' (Score: {best_score:.2f})")
     return best_song if best_score >= accuracy else None
 
 
 class SongBPMHandler:
-    BASE_URL = "https://api.getsongbpm.com"
-
     def __init__(self, config):
         cfg = config.get_song_bpm()
         self.api_key = cfg["API_KEY"]
 
     def _search_song(self, title: str, artist: str) -> dict | None:
-        """Sucht einen Song und gibt den besten Match zurück."""
+        """Sucht Song mit type=both korrekt nach API-Doku."""
         params = {
             "api_key": self.api_key,
             "type": "both",
-            "lookup": title,
-            "artist": artist
+            "lookup": f"song:{title} artist:{artist}"
         }
-        response = requests.get(f"{self.BASE_URL}/search/", params=params)
-        response.raise_for_status()
-        results = response.json().get("search", [])
-        if not results:
-            print(f"Kein Ergebnis für: {artist} - {title}")
+        try:
+            response = requests.get(f"{BASE_URL}/search/", params=params)
+            if response.status_code == 403:
+                print("API-Zugriff verweigert (403) – Rate Limit oder ungültiger Key")
+                return None
+            if response.status_code == 429:
+                print("Rate Limit erreicht (429) – zu viele Anfragen")
+                return None
+            response.raise_for_status()
+            results = response.json().get("search", [])
+            if not results:
+                print(f"Kein Ergebnis für: {artist} - {title}")
+                return None
+            return find_best_match(results, artist, title, cfg["song_accuracy"])
+        except requests.exceptions.RequestException as e:
+            print(f"API-Fehler für '{artist} - {title}': {e}")
             return None
-        return find_best_match(results, artist, title, cfg["song_accuracy"])
-
-    def _get_song_details(self, song_id: str) -> dict | None:
-        """Holt die Detaildaten eines Songs anhand der ID."""
-        params = {
-            "api_key": self.api_key,
-            "id": song_id
-        }
-        response = requests.get(f"{self.BASE_URL}/song/", params=params)
-        response.raise_for_status()
-        return response.json().get("song")
 
     def _read_existing_tags(self, filepath: str) -> dict:
         """Liest vorhandene ID3-Tags aus der MP3-Datei."""
@@ -120,40 +119,34 @@ class SongBPMHandler:
             return
 
         existing = self._read_existing_tags(filepath)
-
         artist = existing.get("artist") or ""
-        title  = existing.get("title")  or os.path.splitext(os.path.basename(filepath))[0]
+        title  = existing.get("title") or os.path.splitext(os.path.basename(filepath))[0]
 
         if not artist:
             print(f"Kein Artist-Tag gefunden, überspringe API: {filepath}")
             return
 
-        # Besten Match direkt aus search holen
-        best_match = self._search_song(title, artist)
-        if not best_match:
+        match = self._search_song(title, artist)
+        if not match:
             print(f"Kein passender Match gefunden für: {artist} - {title}")
             return
 
-        # Detail-Endpunkt mit ID aus dem Match aufrufen
-        details = self._get_song_details(best_match["id"])
-        if not details:
-            print(f"Keine Details gefunden für Song-ID: {best_match['id']}")
-            return
-
-        genres = details.get("artist", {}).get("genres", [])
-        genre_str = ", ".join(genres) if genres else ""
+        # Album direkt aus Search-Result – kein zweiter API-Call nötig
+        genres = match.get("artist", {}).get("genres", [])
+        album  = match.get("album", {}).get("title", "") or existing.get("album")
+        date   = str(match.get("album", {}).get("year", "")) or existing.get("date")
 
         merged = {
-            "title":        details.get("title")                   or existing.get("title"),
-            "artist":       details.get("artist", {}).get("name")  or existing.get("artist"),
-            "album":        existing.get("album"),
-            "date":         existing.get("date"),
-            "track":        existing.get("track"),
-            "length":       existing.get("length"),
-            "bpm":          details.get("tempo"),
-            "genre":        genre_str,
-            "danceability": details.get("danceability"),
-            "acousticness": details.get("acousticness"),
+            "title":        match.get("title")                  or existing.get("title"),
+            "artist":       match.get("artist", {}).get("name") or existing.get("artist"),
+            "album":        album,
+            "date":         date,
+            "track":        existing.get("track"),  
+            "length":       existing.get("length"),  
+            "bpm":          match.get("tempo"),
+            "genre":        ", ".join(genres) if genres else "",
+            "danceability": match.get("danceability"),
+            "acousticness": match.get("acousticness"),
         }
 
         self._write_tags(filepath, merged)

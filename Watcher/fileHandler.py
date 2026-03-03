@@ -1,5 +1,6 @@
 import time, os, threading, shutil
 from watchdog.events import FileSystemEventHandler
+from API_Handler.getSongAPI import SongBPMHandler
 
 class Handler(FileSystemEventHandler):
     def __init__(self, stop_callback, file_queue, config : dict):
@@ -9,6 +10,7 @@ class Handler(FileSystemEventHandler):
         self.lock = threading.Lock()
         self.file_queue = file_queue
         self.config = config
+        self.SongBPM = SongBPMHandler(config)
 
     def on_created(self, event):
         with self.lock:
@@ -54,5 +56,8 @@ class Handler(FileSystemEventHandler):
         if basename.endswith(".tmp") or basename.startswith(".syncthing"):
             return
         output = os.path.join(self.config.get_watcher()["output_path"], basename) 
-        print(f"Verarbeite: {filepath}")
         self.mergeMove(filepath, output)  
+
+        print(f"Verarbeite: {filepath}")
+        handler = SongBPMHandler(self.config)
+        handler.process(output)

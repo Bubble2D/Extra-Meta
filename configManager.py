@@ -39,3 +39,4 @@ class ConfigManager:
         self.data["getSongBPM"]["API_KEY"] = data.get("getSongBPM", {}).get("API_KEY")
         self.data["getSongBPM"]["BACKLINK"] = data.get("getSongBPM", {}).get("BACKLINK")
         self.data["getSongBPM"]["WEBSITE"] = data.get("getSongBPM", {}).get("WEBSITE")
+        self.data["getSongBPM"]["song_accuracy"] = float(data.get("getSongBPM", {}).get("song_accuracy", "0.75"))

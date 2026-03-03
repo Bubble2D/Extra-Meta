@@ -5,6 +5,8 @@ description = "Skript zum Ergänzen von Metadaten ausgehend von artist & titel"
 readme = "README.md"
 requires-python = ">=3.13"
 dependencies = [
+    "mutagen>=1.47.0",
+    "requests>=2.32.5",
     "watchdog>=6.0.0",
 ]
 
