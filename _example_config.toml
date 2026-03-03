@@ -1,0 +1,11 @@
+[Watcher]
+input_directory = "~/music/input"
+output_directory = "~/music/libary"
+idle_timeout = "600"
+periodic_checks = "3600"
+
+[getSongBPM]
+API_KEY = ""
+BACKLINK = ""
+WEBSITE = ""
+song_accuracy = "0.75"
