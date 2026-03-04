@@ -1,6 +1,4 @@
-import os
-import re
-import requests
+import os, re, requests
 from difflib import SequenceMatcher
 from mutagen.id3 import ID3, TIT2, TPE1, TALB, TDRC, TRCK, TBPM, TCON, TXXX, TLEN
 from mutagen.id3 import ID3NoHeaderError

@@ -28,12 +28,12 @@ class Handler(FileSystemEventHandler):
             time.sleep(1)
             with self.lock:
                 elapsed = time.time() - self.last_event_time
-            if elapsed >= self.config.get_watcher()["idle_timeout"]: 
+            if elapsed >= self.config["idle_timeout"]: 
                 print("Keine Änderungen mehr, Observer wird gestoppt")
                 self.stop_callback()
                 break
 
-    def mergeMove(self, src, dst):  # self-Parameter ergänzt
+    def mergeMove(self, src, dst): 
         """Verschiebt src nach dst, bestehende Ordner werden zusammengeführt."""
         if os.path.isdir(src):
             os.makedirs(dst, exist_ok=True)
@@ -47,16 +47,3 @@ class Handler(FileSystemEventHandler):
             else:
                 shutil.move(src, dst)
 
-    def configureData(self, filepath):  
-        time.sleep(1)
-        if not os.path.exists(filepath):
-            print(f"Datei nicht mehr vorhanden, überspringe: {filepath}")
-            return
-        basename = os.path.basename(filepath)
-        if basename.endswith(".tmp") or basename.startswith(".syncthing"):
-            return
-        output = os.path.join(self.config.get_watcher()["output_path"], basename) 
-        self.mergeMove(filepath, output)  
-
-        print(f"Verarbeite: {filepath}")
-        self.SongBPM.process(output)
