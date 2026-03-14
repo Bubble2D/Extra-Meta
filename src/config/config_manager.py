@@ -2,7 +2,7 @@ import os, tomllib
 
 class ConfigManager:  
     def __init__(self):
-        self.data = {  # data als Instanzvariable, nicht Klassenvariable
+        self.data = {  
             "Watcher": {
                 "input_path": None,
                 "output_path": None,
