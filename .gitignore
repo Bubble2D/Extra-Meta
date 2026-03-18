@@ -1,5 +1,10 @@
 # Python-generated files
 __pycache__/
+<<<<<<< HEAD
+=======
+*/__pycache__/
+**/__pycache__/
+>>>>>>> 666dd07 (WIP restructoring and changing API-Endpoints)
 *.py[oc]
 build/
 dist/
@@ -10,4 +15,12 @@ wheels/
 .venv
 
 # config
+<<<<<<< HEAD
 config.toml
+=======
+**/config.toml
+
+# navidrome data
+src/navidrome/data/*
+src/navidrome/*
+>>>>>>> 666dd07 (WIP restructoring and changing API-Endpoints)
